@@ -1,0 +1,81 @@
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.app-header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.app-header h1 {
+  font-size: 3rem;
+  margin-bottom: 0.5rem;
+}
+
+.app-header p {
+  font-size: 1.2rem;
+  opacity: 0.9;
+}
+
+.app-main {
+  width: 100%;
+  max-width: 800px;
+}
+
+.status-section,
+.models-section {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 12px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+
+.status-section h2,
+.models-section h2 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+.status-indicator {
+  padding: 1rem;
+  border-radius: 8px;
+  font-size: 1.1rem;
+}
+
+.status-indicator.healthy {
+  background: rgba(76, 175, 80, 0.3);
+}
+
+.status-indicator.checking {
+  background: rgba(255, 193, 7, 0.3);
+}
+
+.models-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.model-item {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.model-item h3 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+}
+
+.model-item p {
+  margin: 0.25rem 0;
+  opacity: 0.9;
+}
