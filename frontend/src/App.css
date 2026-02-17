@@ -79,3 +79,86 @@
   margin: 0.25rem 0;
   opacity: 0.9;
 }
+
+.layout {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.layout nav {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem 2rem;
+  background: rgba(0,0,0,0.2);
+}
+
+.layout nav a {
+  color: white;
+  text-decoration: none;
+}
+
+.layout main {
+  padding: 2rem;
+}
+
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.login-page form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.login-page input {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: none;
+}
+
+.login-page .hint { font-size: 0.9rem; opacity: 0.8; }
+
+.consent-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.consent-modal {
+  background: white;
+  color: #333;
+  padding: 2rem;
+  border-radius: 12px;
+  max-width: 480px;
+}
+
+.consent-modal label { display: block; margin: 1rem 0; }
+.consent-modal .modal-actions { display: flex; gap: 1rem; margin-top: 1rem; }
+
+.screening .metrics {
+  display: flex;
+  gap: 2rem;
+  margin: 1.5rem 0;
+}
+
+.screening .metric {
+  background: rgba(255,255,255,0.15);
+  padding: 1rem 1.5rem;
+  border-radius: 8px;
+}
+
+.screening .metric span.high { color: #ff6b6b; }
+.screening .metric span.low { color: #69db7c; }
+.screening .metric span.medium { color: #ffd43b; }

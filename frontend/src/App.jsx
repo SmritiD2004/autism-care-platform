@@ -1,63 +1,125 @@
-import { useState, useEffect } from 'react'
-import axios from 'axios'
+import { useState, createContext, useContext } from 'react'
+import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom'
+import Screening from './pages/Screening'
+import TherapyLog from './pages/TherapyLog'
+import Alerts from './pages/Alerts'
 import './App.css'
 
-function App() {
-  const [health, setHealth] = useState(null)
-  const [models, setModels] = useState([])
+const AuthContext = createContext(null)
 
-  useEffect(() => {
-    // Check API health
-    axios.get('http://localhost:8000/health')
-      .then(response => setHealth(response.data))
-      .catch(error => console.error('Health check failed:', error))
+function useAuth() {
+  return useContext(AuthContext)
+}
 
-    // Fetch models
-    axios.get('http://localhost:8000/api/v1/models')
-      .then(response => setModels(response.data.models || []))
-      .catch(error => console.error('Failed to fetch models:', error))
-  }, [])
+function AuthProvider({ children }) {
+  const [user, setUser] = useState(() => {
+    try {
+      const t = localStorage.getItem('auth_token')
+      if (t) return { token: t, loggedIn: true }
+    } catch (_) {}
+    return null
+  })
+
+  const login = (token) => {
+    localStorage.setItem('auth_token', token)
+    setUser({ token, loggedIn: true })
+  }
+
+  const logout = () => {
+    localStorage.removeItem('auth_token')
+    setUser(null)
+  }
 
   return (
-    <div className="app">
-      <header className="app-header">
-        <h1>Autism Project</h1>
-        <p>Frontend Application</p>
-      </header>
-      
-      <main className="app-main">
-        <section className="status-section">
-          <h2>API Status</h2>
-          {health ? (
-            <div className="status-indicator healthy">
-              <span>✓</span> {health.status}
-            </div>
-          ) : (
-            <div className="status-indicator checking">
-              Checking...
-            </div>
-          )}
-        </section>
+    <AuthContext.Provider value={{ user, login, logout }}>
+      {children}
+    </AuthContext.Provider>
+  )
+}
 
-        <section className="models-section">
-          <h2>Available Models</h2>
-          {models.length > 0 ? (
-            <ul className="models-list">
-              {models.map((model) => (
-                <li key={model.id} className="model-item">
-                  <h3>{model.name}</h3>
-                  <p>Version: {model.version}</p>
-                  <p>Status: {model.status}</p>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p>No models available</p>
-          )}
-        </section>
-      </main>
+function ProtectedRoute({ children }) {
+  const { user } = useAuth()
+  if (!user?.loggedIn) {
+    return <Navigate to="/login" replace />
+  }
+  return children
+}
+
+function LoginPage() {
+  const [token, setToken] = useState('')
+  const { login } = useAuth()
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    if (token.trim()) login(token.trim())
+  }
+
+  return (
+    <div className="login-page">
+      <h1>Clinician Login</h1>
+      <form onSubmit={handleSubmit}>
+        <input
+          type="password"
+          placeholder="Enter token"
+          value={token}
+          onChange={(e) => setToken(e.target.value)}
+        />
+        <button type="submit">Log in</button>
+      </form>
+      <p className="hint">Prototype: enter any string as token</p>
     </div>
   )
 }
 
-export default App
+function Layout({ children }) {
+  const { user, logout } = useAuth()
+  return (
+    <div className="layout">
+      <nav>
+        <Link to="/screening">Screening</Link>
+        <Link to="/therapy">Therapy Log</Link>
+        <Link to="/alerts">Alerts</Link>
+        {user && <button onClick={logout}>Logout</button>}
+      </nav>
+      <main>{children}</main>
+    </div>
+  )
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/" element={<Navigate to="/screening" replace />} />
+          <Route
+            path="/screening"
+            element={
+              <ProtectedRoute>
+                <Layout><Screening /></Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/therapy"
+            element={
+              <ProtectedRoute>
+                <Layout><TherapyLog /></Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/alerts"
+            element={
+              <ProtectedRoute>
+                <Layout><Alerts /></Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
+  )
+}

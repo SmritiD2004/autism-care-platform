@@ -7,3 +7,8 @@ torch==2.1.2
 jupyter==1.0.0
 matplotlib==3.8.2
 seaborn==0.13.0
+# Screening module: video-asd-model + gaze-collector
+opencv-python>=4.8.0
+mediapipe>=0.10.0
+# ET dataset download
+requests>=2.28.0
