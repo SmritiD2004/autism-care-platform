@@ -338,9 +338,20 @@ def analyze_video(
             1.0,
         )
     else:
-        # Fallback: model unavailable; risk_score reflects low confidence
-        risk_score = 0.0
-        details["fallback"] = "Video model not available; risk_score not computed"
+        # No VGG16 weights — use MediaPipe signals as heuristic
+        gaze_fixation = pose_gaze["gaze_fixation_time"]
+        gesture_score = pose_gaze["gesture_anomaly_score"]
+    
+        # Low fixation time = higher risk signal
+        fixation_risk = max(0.0, 1.0 - (gaze_fixation / 10.0))
+    # High gesture variance = higher risk signal 
+        gesture_risk = min(1.0, gesture_score * 100)
+    
+        risk_score = float(np.clip(
+        0.5 * fixation_risk + 0.35 * gesture_risk + 0.15 * (1.0 - face_ratio),
+        0.0, 1.0
+    ))
+    details["fallback"] = "VGG16 weights not found; using MediaPipe heuristic"
 
     return ScreeningResult(
         risk_score=float(risk_score),
