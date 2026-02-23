@@ -1,0 +1,96 @@
+/* src/styles/clinician.css */
+
+/* -------------------------------------------------
+   Base wrapper for every clinician page
+   ------------------------------------------------- */
+.nt-clinician-page {
+  font-family: var(--font-sans, "Inter", system-ui, sans-serif);
+  color: var(--text-1);
+}
+
+/* -------------------------------------------------
+   Top‑bar (title / subtitle)
+   ------------------------------------------------- */
+.nt-topbar {
+  padding: 1.5rem 2rem;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--border);
+}
+.nt-topbar-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.nt-topbar-sub {
+  font-size: 0.95rem;
+  color: var(--text-2);
+}
+
+/* -------------------------------------------------
+   Main content padding
+   ------------------------------------------------- */
+.nt-content {
+  padding: 2rem;
+}
+
+/* -------------------------------------------------
+   Stat cards (Dashboard)
+   ------------------------------------------------- */
+.nt-stat {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* -------------------------------------------------
+   Alerts list – nicer visual cue
+   ------------------------------------------------- */
+.nt-alert-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  background: var(--bg-1);
+}
+.nt-alert-item[data-type="critical"] {
+  border-left: 4px solid var(--danger);
+  background: rgba(239, 68, 68, 0.08);
+}
+.nt-alert-item[data-type="warning"] {
+  border-left: 4px solid var(--warn);
+  background: rgba(245, 158, 11, 0.08);
+}
+
+/* -------------------------------------------------
+   Patient selector (Therapy page)
+   ------------------------------------------------- */
+.nt-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  width: 100%;
+  background: transparent;
+}
+.nt-nav-item:hover,
+.nt-nav-item.active {
+  background: var(--bg-2);
+}
+
+/* -------------------------------------------------
+   Responsive grids – stacks under 768 px
+   ------------------------------------------------- */
+@media (max-width: 768px) {
+  .grid-2,
+  .grid-4 {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* -------------------------------------------------
+   Misc helpers (if they are not already in design‑system)
+   ------------------------------------------------- */
+.mb-6 { margin-bottom: 1.5rem; }
+.mt-4 { margin-top: 1rem; }

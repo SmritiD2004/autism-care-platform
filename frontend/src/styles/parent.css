@@ -1,0 +1,91 @@
+/* src/styles/parent.css */
+
+/* ---------- Hero (pt-*) ---------- */
+.pt-hero {
+  background: var(--bg-1);
+  padding: 2rem;
+  border-radius: 12px;
+  text-align: center;
+}
+.pt-hero-greeting {
+  font-size: 0.95rem;
+  color: var(--text-2);
+}
+.pt-hero-title {
+  font-size: 1.6rem;
+  margin-top: 0.5rem;
+}
+
+/* ---------- Responsive grid for 3‑column stat row ---------- */
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1rem;
+}
+
+/* ---------- Metric cards inside the screening result ---------- */
+.pt-metric-card {
+  background: var(--bg-2);
+  padding: 1rem;
+  border-radius: 8px;
+  text-align: center;
+}
+.pt-metric-label {
+  font-size: 0.85rem;
+  color: var(--text-2);
+}
+.pt-metric-value {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-top: 0.25rem;
+}
+
+/* ---------- Bottom navigation – mobile only ---------- */
+.pt-bottomnav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--bg-2);
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-around;
+  padding: 0.5rem 0;
+  z-index: 10;
+}
+.pt-nav-tab {
+  background: transparent;
+  border: none;
+  font-size: 1rem;
+  color: var(--text-2);
+}
+.pt-nav-tab.active {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+/* hide bottom nav on desktop */
+@media (min-width: 769px) {
+  .pt-bottomnav {
+    display: none;
+  }
+}
+
+/* ---------- Sidebar hide on mobile (used in ParentLayout) ---------- */
+@media (max-width: 768px) {
+  .parent-sidebar {
+    display: none;
+  }
+}
+
+/* ---------- Minor utilities (optional) ---------- */
+.mt-6 { margin-top: 1.5rem; }
+.mb-4 { margin-bottom: 1rem; }
+.mt-4 { margin-top: 1rem; }
+
+/* hide the sidebar on narrow screens */
+@media (max-width: 768px) {
+  .parent-sidebar {
+    display: none;
+  }
+}
