@@ -1,6 +1,23 @@
 version: "3.8"
 
 services:
+  db:
+    image: postgres:15
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-neurothrive}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-neurothrive}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   backend:
     build:
       context: .
@@ -11,7 +28,13 @@ services:
       - .:/app
     environment:
       - PYTHONPATH=/app
-    command: uvicorn backend.main:app --host 0.0.0.0 --port 8000
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-neurothrive}
+      - SECRET_KEY=${SECRET_KEY:-CHANGE_ME_run_openssl_rand_hex_32}
+      - FRONTEND_ORIGINS=${FRONTEND_ORIGINS:-http://localhost:5173,http://localhost:3000}
+    depends_on:
+      db:
+        condition: service_healthy
+    command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
 
   streamlit:
     build:
@@ -26,3 +49,6 @@ services:
     depends_on:
       - backend
     command: streamlit run streamlit/app.py --server.port 8501 --server.address 0.0.0.0
+
+volumes:
+  db_data:

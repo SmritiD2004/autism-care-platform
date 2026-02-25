@@ -5,7 +5,7 @@ from pydantic import BaseModel, EmailStr, field_validator
 from models import RoleEnum
 
 
-# ── Auth ──────────────────────────────────────────────────────────────────────
+# Auth 
 class RegisterRequest(BaseModel):
     email:     EmailStr
     full_name: str
@@ -49,7 +49,7 @@ class TokenResponse(BaseModel):
     user:         UserOut
 
 
-# ── Screening ─────────────────────────────────────────────────────────────────
+# Screening 
 class ScreeningResult(BaseModel):
     """What the API returns after running a video screening."""
     screening_log_id:  Optional[int]   = None

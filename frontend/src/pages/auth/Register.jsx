@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { ErrorBoundary } from "../../components/ErrorBoundary";
+import { protoRegister } from "../../services/auth";
 import "../../styles/design-system.css";
 
 const roleOptions = [
@@ -64,8 +65,15 @@ function RegisterInner() {
     if (pwd.length < 8)              return setError("Password must be at least 8 characters");
     setLoading(true);
     try {
-      const fake = { token: `demo-${Date.now()}`, fullName, role };
-      login(fake);
+      const created = await protoRegister({ email, fullName, role, password: pwd });
+      const userData = {
+        token: `demo-${Date.now()}`,
+        id: created.id,
+        email: created.email,
+        fullName: created.full_name || fullName,
+        role: created.role || role,
+      };
+      login(userData);
       navigate(role === "parent" ? "/parent" : "/clinician");
     } catch {
       setError("Registration failed – please try again");

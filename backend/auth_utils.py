@@ -11,21 +11,40 @@ from config import settings
 from database import get_db
 import models
 
-pwd_context  = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context   = CryptContext(schemes=["bcrypt"], deprecated="auto")
 bearer_scheme = HTTPBearer()
 
 
-# ── Password ──────────────────────────────────────────────────────────────────
+# Password 
+
+def _truncate_bcrypt_secret(plain: str) -> str:
+    """
+    Bcrypt has a hard 72-byte limit. Truncate by bytes (utf-8) to avoid errors.
+    """
+    raw = plain.encode("utf-8")
+    if len(raw) <= 72:
+        return plain
+    return raw[:72].decode("utf-8", errors="ignore")
+
+
 def hash_password(plain: str) -> str:
-    return pwd_context.hash(plain)
+    # Bcrypt has a 72-byte limit; truncate if necessary
+    truncated = _truncate_bcrypt_secret(plain)
+    return pwd_context.hash(truncated)
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    # Bcrypt has a 72-byte limit; truncate if necessary
+    truncated = _truncate_bcrypt_secret(plain)
+    return pwd_context.verify(truncated, hashed)
 
 
-# ── JWT ───────────────────────────────────────────────────────────────────────
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+# JWT 
+
+def create_access_token(
+    data: dict,
+    expires_delta: Optional[timedelta] = None,
+) -> str:
     payload = data.copy()
     expire  = datetime.now(timezone.utc) + (
         expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -45,7 +64,8 @@ def _decode_token(token: str) -> dict:
         )
 
 
-# ── FastAPI dependencies ──────────────────────────────────────────────────────
+#  FastAPI dependencies 
+
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
     db: Session = Depends(get_db),
@@ -56,14 +76,17 @@ def get_current_user(
         raise HTTPException(status_code=401, detail="Token is missing subject")
 
     user = db.query(models.User).filter(models.User.id == int(user_id)).first()
-    if not user or not user.is_active:
+
+    # bool() cast resolves Pylance's Column[bool] false positive
+    if not user or not bool(user.is_active):
         raise HTTPException(status_code=401, detail="User not found or deactivated")
+
     return user
 
 
 def require_roles(*roles: str):
     """
-    Factory for role-gated endpoints.
+    Role-gated dependency factory.
 
     Usage:
         @router.get("/admin-only")

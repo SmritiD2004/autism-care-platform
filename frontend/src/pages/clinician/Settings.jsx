@@ -7,6 +7,9 @@ export default function ClinicianSettings() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const displayName = user?.fullName || user?.email || 'User';
+  const initial = displayName.trim().charAt(0).toUpperCase() || 'U';
+  const roleLabel = user?.role ? `${user.role.charAt(0).toUpperCase()}${user.role.slice(1)}` : 'User';
 
   const handleLogout = () => {
     logout();
@@ -59,14 +62,14 @@ export default function ClinicianSettings() {
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 20, fontWeight: 700, color: '#fff', flexShrink: 0,
               }}>
-                {user?.name?.[0]?.toUpperCase() || 'A'}
+                {initial}
               </div>
               <div>
                 <div style={{ fontSize: 16, fontWeight: 600, color: '#e2e8f0' }}>
-                  {user?.name || 'Dr. Aanya Sharma'}
+                  {displayName}
                 </div>
                 <div style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>
-                  {user?.email || 'aanya.sharma@example.com'}
+                  {user?.email || ''}
                 </div>
               </div>
             </div>
@@ -79,7 +82,7 @@ export default function ClinicianSettings() {
                 </label>
                 <input
                   type="text"
-                  value={user?.name || 'Dr. Aanya Sharma'}
+                  value={displayName}
                   readOnly
                   style={{
                     width: '100%',
@@ -100,7 +103,7 @@ export default function ClinicianSettings() {
                 </label>
                 <input
                   type="email"
-                  value={user?.email || 'aanya.sharma@example.com'}
+                  value={user?.email || ''}
                   readOnly
                   style={{
                     width: '100%',
@@ -121,7 +124,7 @@ export default function ClinicianSettings() {
                 </label>
                 <input
                   type="text"
-                  value={user?.role || 'Clinician'}
+                  value={roleLabel}
                   readOnly
                   style={{
                     width: '100%',

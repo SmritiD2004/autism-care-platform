@@ -2,12 +2,14 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+# Install minimal dependencies (removed libgl1-mesa-glx which may not be available in slim image)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libgl1-mesa-glx libglib2.0-0 \
+    libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY ml/requirements.txt /tmp/ml_requirements.txt
-RUN pip install --no-cache-dir -r /tmp/ml_requirements.txt \
+RUN pip install --upgrade pip setuptools && \
+    pip install --no-cache-dir --trusted-host pypi.python.org --trusted-host files.pythonhosted.org -r /tmp/ml_requirements.txt \
     streamlit requests
 
 COPY . /app

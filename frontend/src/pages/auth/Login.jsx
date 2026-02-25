@@ -3,6 +3,8 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { ErrorBoundary } from "../../components/ErrorBoundary";
+import { protoLogin } from "../../services/auth";
+
 import "../../styles/design-system.css";
 
 function LoginInner() {
@@ -21,17 +23,10 @@ function LoginInner() {
     setError("");
     setLoading(true);
     try {
-      // 🔁 Replace with real API call — role comes from server
-      const fakeResponse = {
-        token:    `demo-${Date.now()}`,
-        email,
-        fullName: "Demo User",
-        // Tip: use "clinician@..." to test clinician flow
-        role: email.includes("clinician") ? "clinician" : "parent",
-      };
-      login(fakeResponse);
+      const userData = await protoLogin(email, pwd);
+      login(userData);
       // Role-based redirect
-      navigate(fakeResponse.role === "parent" ? "/parent/dashboard" : "/clinician/dashboard");
+      navigate(userData.role === "parent" ? "/parent/dashboard" : "/clinician/dashboard");
     } catch {
       setError("Login failed – please try again");
     } finally {

@@ -1,5 +1,6 @@
 // src/pages/clinician/ClinicianLayout.jsx
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import '../../styles/design-system.css';
 import '../../styles/clinician.css';
 
@@ -54,6 +55,11 @@ const inactiveLinkStyle = {
 };
 
 export default function ClinicianLayout() {
+  const { user } = useAuth();
+  const displayName = user?.fullName || user?.email || 'User';
+  const initial = displayName.trim().charAt(0).toUpperCase() || 'U';
+  const roleLabel = user?.role ? `${user.role.charAt(0).toUpperCase()}${user.role.slice(1)}` : 'User';
+
   return (
     <div style={{ display: 'flex', height: '100vh', background: '#0f1923', overflow: 'hidden' }}>
       {/* ── Sidebar ── */}
@@ -84,7 +90,7 @@ export default function ClinicianLayout() {
               </svg>
             </div>
             <span style={{ fontSize: 16, fontWeight: 800, color: '#f1f5f9', letterSpacing: '-0.02em' }}>
-              NeuroThrive
+              Neuro<span style={{ color: '#14b8a6' }}>Thrive</span>
             </span>
           </div>
         </div>
@@ -154,13 +160,13 @@ export default function ClinicianLayout() {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 13, fontWeight: 700, color: '#fff', flexShrink: 0,
             }}>
-              A
+              {initial}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                Dr. Aanya Sharma
+                {displayName}
               </div>
-              <div style={{ fontSize: 11, color: '#64748b' }}>Clinician</div>
+              <div style={{ fontSize: 11, color: '#64748b' }}>{roleLabel}</div>
             </div>
           </div>
         </div>

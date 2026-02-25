@@ -39,6 +39,10 @@ npm run dev
 
 Frontend available at `http://localhost:5173`
 
+Notes:
+- The Vite dev server proxies `/api` to the backend at `http://127.0.0.1:8000`.
+- Prototype auth and prototype endpoints live under `/api/proto/*`.
+
 ### Streamlit Demo
 
 ```bash

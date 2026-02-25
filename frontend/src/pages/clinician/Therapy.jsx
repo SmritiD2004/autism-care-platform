@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
+import { api } from '../../services/api';
 import '../../styles/design-system.css';
 import '../../styles/clinician.css';
 
@@ -90,6 +92,7 @@ const Avatar = ({ initials, size = 36 }) => (
 
 const PlanCard = ({ plan, planKey, selected, onSelect }) => {
   const isSelected = selected === planKey;
+  const isAssigned = isSelected && plan.recommended;
   return (
     <div style={{
       background: '#132030',
@@ -147,13 +150,14 @@ const PlanCard = ({ plan, planKey, selected, onSelect }) => {
         }}
       >
         {isSelected && <CheckIcon />}
-        {isSelected ? 'Selected' : 'Select Plan'}
+        {isAssigned ? 'Assigned' : (isSelected ? 'Selected' : 'Select Plan')}
       </button>
     </div>
   );
 };
 
 export default function ClinicianTherapy() {
+  const { user } = useAuth();
   const [selId, setSelId] = useState(1);
   const [selectedPlan, setSelectedPlan] = useState('A');
   const [age, setAge] = useState('4');
@@ -161,9 +165,69 @@ export default function ClinicianTherapy() {
   const [commScore, setCommScore] = useState('5');
   const [motorScore, setMotorScore] = useState('7');
   const [notes, setNotes] = useState('');
+  const [plans, setPlans] = useState(plansData[1]);
+  const [generating, setGenerating] = useState(false);
+  const [genError, setGenError] = useState('');
 
   const patient = patients.find(p => p.id === selId);
-  const plans = plansData[selId];
+  const displayName = user?.fullName || user?.email || 'User';
+  const initial = displayName.trim().charAt(0).toUpperCase() || 'U';
+
+  const toPlanMap = (apiPlans) => {
+    const next = {};
+    for (const p of apiPlans) {
+      const cost = Number(p.cost_estimate || 0);
+      const isRec = !!p.recommended;
+      next[p.key] = {
+        name: p.name,
+        tag: isRec ? 'Recommended' : p.tag,
+        subtitle: p.subtitle,
+        frequency: p.frequency,
+        milestone: `${p.milestone_probability}%`,
+        timeEstimate: p.time_estimate,
+        costEstimate: `$${cost.toLocaleString()}`,
+        desc: p.desc,
+        recommended: isRec,
+      };
+    }
+    return next;
+  };
+
+  const normalizeSeverity = (val) => {
+    const v = (val || '').toLowerCase();
+    if (v === 'high') return 'severe';
+    if (v === 'mid') return 'moderate';
+    if (v === 'low') return 'mild';
+    return v || 'moderate';
+  };
+
+  const handleGenerate = async () => {
+    setGenerating(true);
+    setGenError('');
+    try {
+      const payload = {
+        age_years: Number(age),
+        severity: normalizeSeverity(severity || patient?.severity),
+        risk_score: patient?.risk ?? 0.5,
+        comm_score: Number(commScore),
+        motor_score: Number(motorScore),
+        notes,
+        proto_patient_id: selId,
+        patient_name: patient?.name,
+      };
+      const { data } = await api.post('/proto/interventions/generate', payload);
+      const apiPlans = Array.isArray(data) ? data : [];
+      const mapped = toPlanMap(apiPlans);
+      setPlans(mapped);
+      const recommended = apiPlans.find(p => p.recommended)?.key || 'A';
+      setSelectedPlan(recommended);
+    } catch (e) {
+      setPlans(plansData[selId]);
+      setGenError('Could not generate plans — showing mock plans.');
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const inputStyle = {
     background: 'rgba(255,255,255,0.04)',
@@ -210,7 +274,7 @@ export default function ClinicianTherapy() {
             background: 'linear-gradient(135deg,#14b8a6,#0d9488)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontWeight: 700, fontSize: 14, color: '#fff',
-          }}>A</div>
+          }}>{initial}</div>
         </div>
       </div>
 
@@ -249,7 +313,7 @@ export default function ClinicianTherapy() {
                 {patients.map(p => (
                   <button
                     key={p.id}
-                    onClick={() => { setSelId(p.id); setSelectedPlan('A'); }}
+                    onClick={() => { setSelId(p.id); setPlans(plansData[p.id]); setSelectedPlan('A'); }}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 10,
                       background: selId === p.id ? 'rgba(20,184,166,0.1)' : 'rgba(255,255,255,0.03)',
@@ -326,15 +390,24 @@ export default function ClinicianTherapy() {
                 />
               </div>
 
-              <button style={{
-                width: '100%', padding: '11px',
+              <button
+                onClick={handleGenerate}
+                disabled={generating}
+                style={{
+                  width: '100%', padding: '11px',
                 background: '#14b8a6', color: '#fff',
                 border: 'none', borderRadius: 8,
-                fontSize: 14, fontWeight: 600, cursor: 'pointer',
-                marginTop: 4,
+                fontSize: 14, fontWeight: 600,
+                cursor: generating ? 'not-allowed' : 'pointer',
+                marginTop: 4, opacity: generating ? 0.8 : 1,
               }}>
-                Generate Plans
+                {generating ? 'Generating...' : 'Generate Plans'}
               </button>
+              {genError && (
+                <div style={{ marginTop: 8, fontSize: 12, color: '#fca5a5' }}>
+                  {genError}
+                </div>
+              )}
             </div>
           </div>
 

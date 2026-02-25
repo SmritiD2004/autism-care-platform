@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
@@ -124,11 +125,14 @@ const CustomTooltip = ({ active, payload, label }) => {
 
 export default function ClinicianDashboard() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const displayName = user?.fullName || user?.email || 'User';
+  const initial = displayName.trim().charAt(0).toUpperCase() || 'U';
 
   const { data: patients = [] } = useQuery({
     queryKey: ['patients'],
     queryFn: async () => {
-      const { data } = await api.get('/patients');
+      const { data } = await api.get('/proto/patients');
       return data;
     },
   });
@@ -205,7 +209,7 @@ export default function ClinicianDashboard() {
             background: 'linear-gradient(135deg,#14b8a6,#0d9488)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontWeight: 700, fontSize: 14, color: '#fff',
-          }}>A</div>
+          }}>{initial}</div>
         </div>
       </div>
 

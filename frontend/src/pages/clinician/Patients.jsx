@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { api } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 import '../../styles/design-system.css';
 import '../../styles/clinician.css';
 
@@ -62,18 +61,10 @@ const Avatar = ({ initials }) => (
 
 export default function ClinicianPatients() {
   const [activeTab, setActiveTab] = useState('All');
-
-  const { data: patientsData } = useQuery({
-    queryKey: ['patients'],
-    queryFn: async () => {
-      try {
-        const { data } = await api.get('/patients');
-        return Array.isArray(data) ? data : mockPatients;
-      } catch { return mockPatients; }
-    },
-  });
-
-  const patients = Array.isArray(patientsData) ? patientsData : mockPatients;
+  const { user } = useAuth();
+  const displayName = user?.fullName || user?.email || 'User';
+  const initial = displayName.trim().charAt(0).toUpperCase() || 'U';
+  const patients = mockPatients;
 
   const filtered = activeTab === 'All'
     ? patients
@@ -116,7 +107,7 @@ export default function ClinicianPatients() {
             background: 'linear-gradient(135deg,#14b8a6,#0d9488)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontWeight: 700, fontSize: 14, color: '#fff',
-          }}>A</div>
+          }}>{initial}</div>
         </div>
       </div>
 

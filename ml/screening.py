@@ -2,10 +2,16 @@
 Unified video ASD screening module.
 
 Integrates:
-- video-asd-model: VGG16+LSTM behavioral video classifier
-- gaze-collector MediaPipe: Face mesh for gaze/face quality metrics
+- video-asd-model : VGG16+LSTM behavioural video classifier
+- gaze-collector  : MediaPipe Face Mesh + Pose for gaze/gesture metrics
 
-Provides analyze_video() returning a single risk score (0-1).
+Entry points
+------------
+analyze_video(video_path, ...)                → ScreeningResult
+analyze_video_with_explainability(video_path) → dict  (API-ready)
+explain_risk_score(result)                    → dict  (SHAP-style)
+
+Risk bands:  Low < 0.3 | Medium 0.3–0.7 | High > 0.7
 """
 
 from __future__ import annotations
@@ -19,34 +25,39 @@ from typing import Optional
 import cv2
 import numpy as np
 
-# Add video-asd-model to path for imports
-ML_DIR = Path(__file__).resolve().parent
+# ── Paths ─────────────────────────────────────────────────────────────────────
+ML_DIR        = Path(__file__).resolve().parent
 VIDEO_ASD_DIR = ML_DIR / "video-asd-model"
+
 if str(VIDEO_ASD_DIR) not in sys.path:
     sys.path.insert(0, str(VIDEO_ASD_DIR))
 
 
+# ── Result dataclass ──────────────────────────────────────────────────────────
+
 @dataclass
 class ScreeningResult:
-    """Result of video ASD screening analysis."""
+    """Full result of a single video ASD screening run."""
 
-    risk_score: float  # 0–1, higher = higher ASD risk (Low<0.3, High>0.7)
-    video_model_prob: Optional[float]  # P(ASD) from VGG16+LSTM if available
-    face_detection_ratio: float  # Fraction of frames with detected face (MediaPipe)
-    gaze_metrics: dict  # MediaPipe-derived quality/gaze indicators
-    details: dict  # Raw breakdown for debugging/transparency
-    indicators: dict  # gaze_fixation_time (sec), gesture_anomalies, etc.
+    risk_score:           float           # 0–1, higher = higher ASD risk
+    video_model_prob:     Optional[float] # P(ASD) from VGG16+LSTM if available
+    face_detection_ratio: float           # Fraction of frames with detected face
+    gaze_metrics:         dict            # MediaPipe-derived quality indicators
+    details:              dict            # Raw breakdown for debugging / XAI
+    indicators:           dict            # gaze_fixation_time (s), gesture_anomalies
 
+
+# ── MediaPipe helpers ─────────────────────────────────────────────────────────
 
 def _extract_mediapipe_features(video_path: str) -> dict:
     """
-    Extract face mesh and gaze-related metrics from video using MediaPipe.
-    Mirrors gaze-collector's FaceMesh usage (setup_window, experiment_window).
+    Extract Face Mesh metrics from every frame.
+    Returns face_detection_ratio, iris_detected_ratio, eye_landmark_variance, fps.
     """
     import mediapipe as mp
 
     mp_face_mesh = mp.solutions.face_mesh
-    face_mesh = mp_face_mesh.FaceMesh(
+    face_mesh    = mp_face_mesh.FaceMesh(
         max_num_faces=1,
         refine_landmarks=True,
         min_detection_confidence=0.5,
@@ -57,16 +68,17 @@ def _extract_mediapipe_features(video_path: str) -> dict:
     if not cap.isOpened():
         return {
             "face_detection_ratio": 0.0,
-            "frame_count": 0,
+            "frame_count":          0,
             "eye_landmark_variance": None,
-            "iris_detected_ratio": None,
+            "iris_detected_ratio":  None,
+            "fps":                  30.0,
         }
-    fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
 
-    frame_count = 0
-    face_detected_count = 0
-    iris_detected_count = 0
-    eye_positions = []  # For gaze variance (optional)
+    fps              = cap.get(cv2.CAP_PROP_FPS) or 30.0
+    frame_count      = 0
+    face_detected    = 0
+    iris_detected    = 0
+    eye_positions    = []
 
     try:
         while True:
@@ -75,52 +87,56 @@ def _extract_mediapipe_features(video_path: str) -> dict:
                 break
             frame_count += 1
 
-            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            rgb     = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             results = face_mesh.process(rgb)
 
             if results.multi_face_landmarks:
-                face_detected_count += 1
+                face_detected += 1
                 lm = results.multi_face_landmarks[0]
-                # Iris landmarks: 468–477 (left), 473–478 (right) in refine mode
-                has_iris = len(lm.landmark) >= 478
-                if has_iris:
-                    iris_detected_count += 1
-                # Eye corner indices for gaze proxy
+
+                # Iris landmarks available only in refine mode (index >= 468)
+                if len(lm.landmark) >= 478:
+                    iris_detected += 1
+
+                # Eye corner proxies for gaze variance
                 for idx in [33, 133, 362, 263]:
                     if idx < len(lm.landmark):
                         p = lm.landmark[idx]
                         eye_positions.append((p.x, p.y))
             else:
-                eye_positions.append((np.nan, np.nan))  # Placeholder when no face
+                eye_positions.append((np.nan, np.nan))
     finally:
         cap.release()
         face_mesh.close()
 
-    face_ratio = face_detected_count / frame_count if frame_count > 0 else 0.0
-    iris_ratio = iris_detected_count / frame_count if frame_count > 0 else 0.0
+    face_ratio = face_detected / frame_count if frame_count > 0 else 0.0
+    iris_ratio = iris_detected / frame_count if frame_count > 0 else 0.0
 
-    # Gaze variance: higher variance can indicate less stable gaze (exploratory metric)
-    eye_arr = np.array([p for p in eye_positions if not (np.isnan(p[0]) or np.isnan(p[1]))])
+    eye_arr = np.array(
+        [p for p in eye_positions if not (np.isnan(p[0]) or np.isnan(p[1]))]
+    )
     eye_var = float(np.var(eye_arr)) if len(eye_arr) > 1 else None
 
     return {
-        "face_detection_ratio": face_ratio,
-        "frame_count": frame_count,
+        "face_detection_ratio":  face_ratio,
+        "frame_count":           frame_count,
         "eye_landmark_variance": eye_var,
-        "iris_detected_ratio": iris_ratio,
-        "fps": fps,
+        "iris_detected_ratio":   iris_ratio,
+        "fps":                   fps,
     }
 
 
 def _extract_pose_and_gaze(video_path: str) -> dict:
     """
-    Extract MediaPipe Pose + Face mesh for gaze fixation time and gesture anomalies.
-    Returns gaze_fixation_time (sec), gesture_anomaly_score, pose_landmarks per frame.
+    Extract MediaPipe Pose + Face Mesh to compute:
+      - gaze_fixation_time  : seconds where eye gaze is stable
+      - gesture_anomaly_score: pose landmark variance (proxy for atypical movement)
     """
     import mediapipe as mp
 
     mp_face_mesh = mp.solutions.face_mesh
-    mp_pose = mp.solutions.pose
+    mp_pose      = mp.solutions.pose
+
     face_mesh = mp_face_mesh.FaceMesh(
         max_num_faces=1,
         refine_landmarks=True,
@@ -137,98 +153,98 @@ def _extract_pose_and_gaze(video_path: str) -> dict:
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         return {
-            "gaze_fixation_time": 0.0,
+            "gaze_fixation_time":    0.0,
             "gesture_anomaly_score": 0.0,
-            "pose_landmarks": [],
-            "fps": 30,
+            "pose_landmarks":        [],
+            "fps":                   30.0,
         }
-    fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
 
-    eye_positions = []
-    pose_landmarks_list = []
+    fps             = cap.get(cv2.CAP_PROP_FPS) or 30.0
+    eye_positions   = []
+    pose_lm_list    = []
 
     try:
         while True:
             ret, frame = cap.read()
             if not ret:
                 break
-            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+            rgb          = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             face_results = face_mesh.process(rgb)
             pose_results = pose.process(rgb)
 
+            # ── Eye centre from face landmarks ────────────────────────────────
             if face_results.multi_face_landmarks:
-                lm = face_results.multi_face_landmarks[0]
-                eye_center = np.array([0.0, 0.0])
-                count = 0
+                lm         = face_results.multi_face_landmarks[0]
+                eye_center = np.zeros(2)
+                count      = 0
                 for idx in [33, 133, 362, 263, 468, 473]:
                     if idx < len(lm.landmark):
-                        p = lm.landmark[idx]
+                        p           = lm.landmark[idx]
                         eye_center += np.array([p.x, p.y])
-                        count += 1
+                        count      += 1
                 if count > 0:
-                    eye_center /= count
-                    eye_positions.append(eye_center)
+                    eye_positions.append(eye_center / count)
                 else:
                     eye_positions.append(np.array([np.nan, np.nan]))
             else:
                 eye_positions.append(np.array([np.nan, np.nan]))
 
+            # ── Pose landmarks ────────────────────────────────────────────────
             if pose_results.pose_landmarks:
-                lms = [
-                    (p.x, p.y, p.z)
-                    for p in pose_results.pose_landmarks.landmark
-                ]
-                pose_landmarks_list.append(np.array(lms))
+                lms = [(p.x, p.y, p.z) for p in pose_results.pose_landmarks.landmark]
+                pose_lm_list.append(np.array(lms))
     finally:
         cap.release()
         face_mesh.close()
         pose.close()
 
-    # Gaze fixation time: frames where eye position is stable (low movement)
+    # ── Gaze fixation time ────────────────────────────────────────────────────
     gaze_fixation_sec = 0.0
     if len(eye_positions) > 1:
         valid = np.array([p for p in eye_positions if not np.any(np.isnan(p))])
         if len(valid) > 5:
-            diffs = np.linalg.norm(np.diff(valid, axis=0), axis=1)
-            fix_threshold = 0.02
-            fix_frames = np.sum(diffs < fix_threshold)
-            gaze_fixation_sec = float(fix_frames / fps)
+            diffs      = np.linalg.norm(np.diff(valid, axis=0), axis=1)
+            fix_frames = int(np.sum(diffs < 0.02))  # threshold: 2% normalised movement
+            gaze_fixation_sec = fix_frames / fps
 
-    # Gesture anomaly score: pose landmark variance (higher = more atypical movement)
+    # ── Gesture anomaly score ─────────────────────────────────────────────────
     gesture_anomaly = 0.0
-    if len(pose_landmarks_list) > 2:
-        stack = np.stack(pose_landmarks_list)
-        var = np.var(stack, axis=0)
-        gesture_anomaly = float(np.mean(var))
+    if len(pose_lm_list) > 2:
+        stack           = np.stack(pose_lm_list)            # (frames, joints, 3)
+        gesture_anomaly = float(np.mean(np.var(stack, axis=0)))
+
     return {
-        "gaze_fixation_time": gaze_fixation_sec,
-        "gesture_anomaly_score": gesture_anomaly,
-        "pose_landmarks": pose_landmarks_list,
-        "fps": fps,
+        "gaze_fixation_time":    float(gaze_fixation_sec),
+        "gesture_anomaly_score": float(gesture_anomaly),
+        "pose_landmarks":        pose_lm_list,
+        "fps":                   float(fps),
     }
 
 
-def _get_video_model_prediction(video_path: str) -> tuple[Optional[float], Optional[str]]:
-    """
-    Run VGG16+LSTM video classifier from video-asd-model.
-    Returns (P(ASD), predicted_label) or (None, None) if model unavailable.
-    """
-    model_dir = VIDEO_ASD_DIR / "models" / "autism_data"
-    vgg16_include_top = True
+# ── VGG16 + LSTM model ────────────────────────────────────────────────────────
 
+def _get_video_model_prediction(
+    video_path: str,
+) -> tuple[Optional[float], Optional[str]]:
+    """
+    Run the VGG16+LSTM classifier from video-asd-model.
+    Returns (P(ASD), predicted_label) or (None, None) when weights are absent.
+    """
+    model_dir   = VIDEO_ASD_DIR / "models" / "autism_data"
     config_path = model_dir / "vgg16-lstm-config.npy"
     weight_path = model_dir / "vgg16-lstm-weights.h5"
 
     if not config_path.exists() or not weight_path.exists():
         return None, None
 
+    # Keras backend compatibility shim (TF1 legacy)
     try:
         from keras import backend as K
-
         if hasattr(K, "common") and hasattr(K.common, "set_image_dim_ordering"):
             K.common.set_image_dim_ordering("tf")
     except Exception:
-        pass  # TF2+ may not need this
+        pass
 
     try:
         from recurrent_networks import vgg16LSTMVideoClassifier
@@ -244,52 +260,61 @@ def _get_video_model_prediction(video_path: str) -> tuple[Optional[float], Optio
         if x is None or len(x) == 0:
             return None, None
 
-        frames = x.shape[0]
+        frames   = x.shape[0]
         expected = predictor.expected_frames
+
         if frames > expected:
             x = x[:expected, :]
         elif frames < expected:
-            temp = np.zeros((expected, x.shape[1]), dtype=x.dtype)
-            temp[:frames, :] = x
-            x = temp
+            padded          = np.zeros((expected, x.shape[1]), dtype=x.dtype)
+            padded[:frames] = x
+            x               = padded
 
-        probs = predictor.model.predict(np.array([x]), verbose=0)[0]
+        probs      = predictor.model.predict(np.array([x]), verbose=0)[0]
         pred_class = int(np.argmax(probs))
         pred_label = predictor.labels_idx2word[pred_class]
 
-        # Find ASD probability: assume label containing 'autism' or first class is ASD
+        # Find ASD class probability
         asd_prob = 0.0
-        for idx, (label, _) in enumerate(predictor.labels.items()):
+        for idx, label in enumerate(predictor.labels):
             if "autism" in str(label).lower() or "asd" in str(label).lower():
                 asd_prob = float(probs[idx])
                 break
-        if asd_prob == 0.0 and len(probs) >= 1:
-            asd_prob = float(probs[0])  # Fallback: use first class as risk proxy
+        if asd_prob == 0.0:
+            asd_prob = float(probs[0])  # fallback: treat class 0 as ASD proxy
 
         return asd_prob, pred_label
+
     except Exception:
         return None, None
 
 
+# ── Main analysis function ────────────────────────────────────────────────────
+
 def analyze_video(
     video_path: str,
-    video_model_weight: float = 0.85,
-    mediapipe_quality_weight: float = 0.15,
-    min_face_ratio_for_confidence: float = 0.3,
+    video_model_weight:            float = 0.85,
+    mediapipe_quality_weight:      float = 0.15,
+    min_face_ratio_for_confidence: float = 0.30,
 ) -> ScreeningResult:
     """
-    Unified video analysis combining VGG16+LSTM (video-asd-model) and MediaPipe (gaze-collector).
+    Unified ASD risk analysis combining VGG16+LSTM and MediaPipe signals.
+
+    Risk score formula
+    ------------------
+    If VGG16 weights present:
+        risk = 0.85 * video_prob * quality_factor + 0.15 * (1 - face_ratio)
+    Fallback (weights absent):
+        risk = 0.50 * fixation_risk + 0.35 * gesture_risk + 0.15 * (1 - face_ratio)
 
     Args:
-        video_path: Path to video file.
-        video_model_weight: Weight for VGG16+LSTM probability in risk score (0–1).
-        mediapipe_quality_weight: Weight for MediaPipe-derived quality adjustment.
-        min_face_ratio_for_confidence: Below this face_detection_ratio, downweight video model.
-
-    Returns:
-        ScreeningResult with risk_score (0–1) and detailed breakdown.
+        video_path                  : path to video file
+        video_model_weight          : weight for VGG16 probability
+        mediapipe_quality_weight    : weight for MediaPipe quality adjustment
+        min_face_ratio_for_confidence: face ratio below which video model is downweighted
     """
     video_path = str(Path(video_path).resolve())
+
     if not os.path.isfile(video_path):
         return ScreeningResult(
             risk_score=0.0,
@@ -300,61 +325,66 @@ def analyze_video(
             indicators={"gaze_fixation_time": 0.0, "gesture_anomalies": 0.0},
         )
 
-    # 1. MediaPipe features (face mesh + pose)
+    # 1. MediaPipe — face mesh + pose
     mp_features = _extract_mediapipe_features(video_path)
-    pose_gaze = _extract_pose_and_gaze(video_path)
-    face_ratio = mp_features["face_detection_ratio"]
+    pose_gaze   = _extract_pose_and_gaze(video_path)
+    face_ratio  = mp_features["face_detection_ratio"]
+
     gaze_metrics = {
-        "face_detection_ratio": face_ratio,
-        "frame_count": mp_features["frame_count"],
+        "face_detection_ratio":  face_ratio,
+        "frame_count":           mp_features["frame_count"],
         "eye_landmark_variance": mp_features["eye_landmark_variance"],
-        "iris_detected_ratio": mp_features["iris_detected_ratio"],
+        "iris_detected_ratio":   mp_features["iris_detected_ratio"],
     }
     indicators = {
         "gaze_fixation_time": pose_gaze["gaze_fixation_time"],
-        "gesture_anomalies": pose_gaze["gesture_anomaly_score"],
+        "gesture_anomalies":  pose_gaze["gesture_anomaly_score"],
     }
 
-    # 2. Video model prediction
+    # 2. VGG16+LSTM prediction
     video_prob, pred_label = _get_video_model_prediction(video_path)
+
     details = {
-        "video_model_prob": video_prob,
+        "video_model_prob":  video_prob,
         "video_model_label": pred_label,
-        "mediapipe": mp_features,
-        "pose_gaze": {k: v for k, v in pose_gaze.items() if k != "pose_landmarks"},
+        "mediapipe":         mp_features,
+        "pose_gaze": {
+            k: v for k, v in pose_gaze.items() if k != "pose_landmarks"
+        },
     }
 
-    # 3. Compute unified risk score (Low<0.3, High>0.7)
+    # 3. Unified risk score
     if video_prob is not None:
-        base_risk = float(video_prob)
-        # Quality adjustment: if face rarely detected, downweight video model confidence
-        if face_ratio < min_face_ratio_for_confidence:
-            quality_factor = face_ratio / min_face_ratio_for_confidence
-            base_risk = base_risk * quality_factor
-        risk_score = np.clip(
-            video_model_weight * base_risk
-            + mediapipe_quality_weight * (1.0 - face_ratio),
-            0.0,
-            1.0,
+        # Quality adjustment: downweight when face rarely detected
+        quality_factor = (
+            face_ratio / min_face_ratio_for_confidence
+            if face_ratio < min_face_ratio_for_confidence
+            else 1.0
         )
-    else:
-        # No VGG16 weights — use MediaPipe signals as heuristic
-        gaze_fixation = pose_gaze["gaze_fixation_time"]
-        gesture_score = pose_gaze["gesture_anomaly_score"]
-    
-        # Low fixation time = higher risk signal
-        fixation_risk = max(0.0, 1.0 - (gaze_fixation / 10.0))
-    # High gesture variance = higher risk signal 
-        gesture_risk = min(1.0, gesture_score * 100)
-    
         risk_score = float(np.clip(
-        0.5 * fixation_risk + 0.35 * gesture_risk + 0.15 * (1.0 - face_ratio),
-        0.0, 1.0
-    ))
-    details["fallback"] = "VGG16 weights not found; using MediaPipe heuristic"
+            video_model_weight * float(video_prob) * quality_factor
+            + mediapipe_quality_weight * (1.0 - face_ratio),
+            0.0, 1.0,
+        ))
+    else:
+        # Fallback: MediaPipe heuristic only
+        gaze_fixation   = pose_gaze["gaze_fixation_time"]
+        gesture_score   = pose_gaze["gesture_anomaly_score"]
+
+        # Low fixation → higher risk; high gesture variance → higher risk
+        fixation_risk   = max(0.0, 1.0 - (gaze_fixation / 10.0))
+        gesture_risk    = min(1.0, gesture_score * 100.0)
+
+        risk_score = float(np.clip(
+            0.50 * fixation_risk
+            + 0.35 * gesture_risk
+            + 0.15 * (1.0 - face_ratio),
+            0.0, 1.0,
+        ))
+        details["fallback"] = "VGG16 weights not found — using MediaPipe heuristic"
 
     return ScreeningResult(
-        risk_score=float(risk_score),
+        risk_score=risk_score,
         video_model_prob=video_prob,
         face_detection_ratio=face_ratio,
         gaze_metrics=gaze_metrics,
@@ -363,61 +393,69 @@ def analyze_video(
     )
 
 
+# ── Explainability ────────────────────────────────────────────────────────────
+
 def explain_risk_score(result: ScreeningResult) -> dict:
     """
-    Feature importance for risk score (SHAP-style explainability).
-    Returns dict of feature name -> importance (contribution to risk).
+    SHAP-style feature importance breakdown for the risk score.
+    Returns {feature: contribution} — positive = raises risk, negative = lowers it.
     """
-    importance = {}
-    r = result.risk_score
-    details = result.details
-    if "fallback" in details:
-        importance["note"] = "Video model unavailable; risk from MediaPipe quality only"
-        importance["face_detection_ratio"] = 1.0 - result.face_detection_ratio
+    importance: dict = {}
+
+    if "fallback" in result.details:
+        importance["note"]                = "VGG16 unavailable — MediaPipe heuristic only"
+        importance["face_detection_ratio"] = round(1.0 - result.face_detection_ratio, 4)
+        importance["gaze_fixation_time"]   = round(
+            max(0.0, 1.0 - result.indicators.get("gaze_fixation_time", 0) / 10.0), 4
+        )
+        importance["gesture_anomalies"]    = round(
+            min(1.0, result.indicators.get("gesture_anomalies", 0) * 100.0), 4
+        )
         return importance
 
-    importance["video_model_prob"] = (
-        float(details.get("video_model_prob", 0) or 0)
-    )
-    importance["face_detection_penalty"] = max(
-        0, (1.0 - result.face_detection_ratio) * 0.15
-    )
-    importance["gaze_fixation"] = -0.1 * result.indicators.get(
-        "gaze_fixation_time", 0
-    )  # More fixation = lower risk
-    importance["gesture_anomalies"] = 0.05 * result.indicators.get(
-        "gesture_anomalies", 0
+    importance["video_model_prob"]       = round(float(result.details.get("video_model_prob") or 0), 4)
+    importance["face_detection_penalty"] = round(max(0.0, (1.0 - result.face_detection_ratio) * 0.15), 4)
+    importance["gaze_fixation"]          = round(
+        -0.1 * result.indicators.get("gaze_fixation_time", 0), 4
+    )  # more fixation = lower risk
+    importance["gesture_anomalies"]      = round(
+        0.05 * result.indicators.get("gesture_anomalies", 0), 4
     )
     return importance
 
 
 def analyze_video_with_explainability(video_path: str, **kwargs) -> dict:
     """
-    Run analyze_video and attach SHAP-style feature importance.
-    Returns dict suitable for API: risk, indicators, shap_importance, (optional) heatmap_base64.
+    Full pipeline: analyze_video + explain_risk_score.
+    Returns API-ready dict with keys:
+      risk, indicators, gaze_metrics, shap_importance, details
     """
-    result = analyze_video(video_path, **kwargs)
+    result     = analyze_video(video_path, **kwargs)
     importance = explain_risk_score(result)
-    out = {
-        "risk": result.risk_score,
-        "indicators": result.indicators,
-        "gaze_metrics": result.gaze_metrics,
-        "details": result.details,
-        "shap_importance": importance,
-    }
-    return out
 
+    return {
+        "risk":             result.risk_score,
+        "indicators":       result.indicators,
+        "gaze_metrics":     result.gaze_metrics,
+        "shap_importance":  importance,
+        "details":          result.details,
+    }
+
+
+# ── CLI ───────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     import sys as _sys
 
-    path = _sys.argv[1] if len(_sys.argv) > 1 else None
-    if not path or not os.path.isfile(path):
-        print("Usage: python -m ml.screening <video_path>")
-        print("  Or: python screening.py <video_path>")
+    _path = _sys.argv[1] if len(_sys.argv) > 1 else None
+    if not _path or not os.path.isfile(_path):
+        print("Usage: python screening.py <video_path>")
+        print("       python -m ml.screening <video_path>")
         _sys.exit(1)
-    result = analyze_video(path)
-    print(f"Risk score: {result.risk_score:.3f}")
-    print(f"Face detection ratio: {result.face_detection_ratio:.3f}")
-    print(f"Video model P(ASD): {result.video_model_prob}")
-    print(f"Details: {result.details}")
+
+    _result = analyze_video(_path)
+    print(f"Risk score          : {_result.risk_score:.3f}")
+    print(f"Face detection ratio: {_result.face_detection_ratio:.3f}")
+    print(f"Video model P(ASD)  : {_result.video_model_prob}")
+    print(f"Indicators          : {_result.indicators}")
+    print(f"Details             : {_result.details}")
