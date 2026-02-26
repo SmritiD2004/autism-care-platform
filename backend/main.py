@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from config import settings
 from database import engine
 from models import Base
-from routers import auth, screening, monitoring, therapy, interventions, parent, proto
+from routers import auth, screening, monitoring, therapy, interventions, parent, proto, patients
 
 # App 
 app = FastAPI(
@@ -34,6 +34,7 @@ Base.metadata.create_all(bind=engine)
 # Routers 
 app.include_router(auth.router,          prefix="/api/auth",          tags=["Auth"])
 app.include_router(screening.router,     prefix="/api/screening",     tags=["Screening"])
+app.include_router(patients.router,      prefix="/api/patients",      tags=["Patients"])
 app.include_router(monitoring.router,    prefix="/api/monitoring",    tags=["Monitoring"])
 app.include_router(therapy.router,       prefix="/api/therapy",       tags=["Therapy"])
 app.include_router(interventions.router, prefix="/api/interventions", tags=["Interventions"])

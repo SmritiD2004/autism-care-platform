@@ -75,3 +75,15 @@ class ScreeningHistoryItem(BaseModel):
 class ScreeningHistoryResponse(BaseModel):
     count:      int
     screenings: list[ScreeningHistoryItem]
+
+
+# Patients
+class PatientOut(BaseModel):
+    id:              int
+    child_id_hashed: str
+    parent_user_id:  Optional[int] = None
+    parent_name:     Optional[str] = None  # From User.full_name
+    metadata_json:   Optional[str] = None
+    created_at:      datetime
+
+    model_config = {"from_attributes": True}
