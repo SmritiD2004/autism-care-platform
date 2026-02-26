@@ -1,3 +1,4 @@
+from pathlib import Path
 from pydantic_settings import BaseSettings
 
 
@@ -17,7 +18,8 @@ class Settings(BaseSettings):
     ]
 
     class Config:
-        env_file = ".env"
+        # Always resolve env file from backend directory, not current working directory.
+        env_file = str(Path(__file__).resolve().parent / ".env")
 
 
 settings = Settings()

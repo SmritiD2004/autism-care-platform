@@ -125,15 +125,19 @@ const CustomTooltip = ({ active, payload, label }) => {
 export default function ClinicianDashboard() {
   const navigate = useNavigate();
 
-  const { data: patients = [] } = useQuery({
-    queryKey: ['patients'],
+  const { data: screeningCount = 0 } = useQuery({
+    queryKey: ['screening-history-count'],
     queryFn: async () => {
-      const { data } = await api.get('/patients');
-      return data;
+      try {
+        const { data } = await api.get('/screening/history');
+        return Number(data?.count ?? 0);
+      } catch {
+        return 0;
+      }
     },
   });
 
-  const activeCount = patients.length || 124;
+  const activeCount = screeningCount || 124;
 
   const stats = [
     {

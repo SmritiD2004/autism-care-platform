@@ -60,29 +60,31 @@ export default function AppRouter() {
 
       {/* ── PROTECTED ── */}
       <Route element={<PrivateRoute />}>
-
-        {/* Clinician */}
-        <Route path="/clinician" element={<ClinicianLayout />}>
-          <Route index                element={<Navigate to="dashboard" replace />} />
-          <Route path="dashboard"     element={<ClinicianDashboard />} />
-          <Route path="patients"      element={<ClinicianPatients  />} />
-          <Route path="therapy"       element={<ClinicianTherapy   />} />
-          <Route path="alerts"        element={<ClinicianAlerts    />} />
-          <Route path="settings"      element={<ClinicianSettings  />} />
-          <Route path='/ml-analysis'  element= {<MLDemo /> }/>
+        <Route element={<PrivateRoute allowedRoles={['clinician', 'admin']} />}>
+          {/* Clinician */}
+          <Route path="/clinician" element={<ClinicianLayout />}>
+            <Route index                element={<Navigate to="dashboard" replace />} />
+            <Route path="dashboard"     element={<ClinicianDashboard />} />
+            <Route path="patients"      element={<ClinicianPatients  />} />
+            <Route path="therapy"       element={<ClinicianTherapy   />} />
+            <Route path="alerts"        element={<ClinicianAlerts    />} />
+            <Route path="settings"      element={<ClinicianSettings  />} />
+            <Route path='ml-analysis' element={<MLDemo />} />
+          </Route>
         </Route>
 
-        {/* Parent */}
-        <Route path="/parent" element={<ParentLayout />}>
-          <Route index                element={<Navigate to="dashboard" replace />} />
-          <Route path="dashboard"     element={<ParentDashboard />} />
-          <Route path="screening"     element={<ParentScreening />} />
-          <Route path="daily-log"     element={<ParentDailyLog/>} />
-          <Route path="alerts"        element={<ParentAlerts/>} />
-          <Route path="wellbeing"     element={<ParentWellbeing />} />
-          <Route path="settings"      element={<ParentSettings  />} />
+        <Route element={<PrivateRoute allowedRoles={['parent']} />}>
+          {/* Parent */}
+          <Route path="/parent" element={<ParentLayout />}>
+            <Route index                element={<Navigate to="dashboard" replace />} />
+            <Route path="dashboard"     element={<ParentDashboard />} />
+            <Route path="screening"     element={<ParentScreening />} />
+            <Route path="daily-log"     element={<ParentDailyLog/>} />
+            <Route path="alerts"        element={<ParentAlerts/>} />
+            <Route path="wellbeing"     element={<ParentWellbeing />} />
+            <Route path="settings"      element={<ParentSettings  />} />
+          </Route>
         </Route>
-
       </Route>
 
       {/* 404 */}
@@ -90,3 +92,4 @@ export default function AppRouter() {
     </Routes>
   );
 }
+

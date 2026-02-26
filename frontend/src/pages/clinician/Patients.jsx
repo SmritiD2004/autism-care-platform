@@ -67,8 +67,10 @@ export default function ClinicianPatients() {
     queryKey: ['patients'],
     queryFn: async () => {
       try {
-        const { data } = await api.get('/patients');
-        return Array.isArray(data) ? data : mockPatients;
+        // Backend currently does not expose /api/patients.
+        // Touch a valid clinician endpoint, then keep stable UI with mock data.
+        await api.get('/screening/history');
+        return mockPatients;
       } catch { return mockPatients; }
     },
   });
