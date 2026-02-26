@@ -14,6 +14,7 @@ import ClinicianPatients  from '../pages/clinician/Patients';       // was Scree
 import ClinicianTherapy   from '../pages/clinician/Therapy';
 import ClinicianAlerts    from '../pages/clinician/Alerts';
 import ClinicianSettings  from '../pages/clinician/Settings';
+import MLDemo from '../pages/clinician/MLDemo'
 
 /* ── PARENT (protected) ── */
 import ParentLayout    from '../pages/parent/ParentLayout';
@@ -68,6 +69,7 @@ export default function AppRouter() {
           <Route path="therapy"       element={<ClinicianTherapy   />} />
           <Route path="alerts"        element={<ClinicianAlerts    />} />
           <Route path="settings"      element={<ClinicianSettings  />} />
+          <Route path='/ml-analysis'  element= {<MLDemo /> }/>
         </Route>
 
         {/* Parent */}
