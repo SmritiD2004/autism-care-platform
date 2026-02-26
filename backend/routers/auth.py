@@ -14,7 +14,13 @@ from models import (
     ClinicianProfile, ParentProfile, TherapistProfile, AdminProfile,
 )
 from schemas import RegisterRequest, LoginRequest, TokenResponse, UserOut
-from auth_utils import hash_password, verify_password, create_access_token, get_current_user
+from auth_utils import (
+    hash_password,
+    verify_password,
+    create_access_token,
+    get_current_user,
+    get_user_by_email,
+)
 
 router = APIRouter()
 
@@ -63,9 +69,9 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
 # ── POST /api/auth/login ──────────────────────────────────────────────────────
 @router.post("/login", response_model=TokenResponse)
 def login(payload: LoginRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == payload.email).first()
+    user = get_user_by_email(db, payload.email)
 
-    if not user or not verify_password(payload.password, user.hashed_password):
+    if not user or not user.hashed_password or not verify_password(payload.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Incorrect email or password")
 
     if not user.is_active:

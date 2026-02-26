@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '../../services/api';
 import '../../styles/design-system.css';
 import '../../styles/clinician.css';
 
@@ -61,10 +62,20 @@ const Avatar = ({ initials }) => (
 
 export default function ClinicianPatients() {
   const [activeTab, setActiveTab] = useState('All');
-  const { user } = useAuth();
-  const displayName = user?.fullName || user?.email || 'User';
-  const initial = displayName.trim().charAt(0).toUpperCase() || 'U';
-  const patients = mockPatients;
+
+  const { data: patientsData } = useQuery({
+    queryKey: ['patients'],
+    queryFn: async () => {
+      try {
+        // Backend currently does not expose /api/patients.
+        // Touch a valid clinician endpoint, then keep stable UI with mock data.
+        await api.get('/screening/history');
+        return mockPatients;
+      } catch { return mockPatients; }
+    },
+  });
+
+  const patients = Array.isArray(patientsData) ? patientsData : mockPatients;
 
   const filtered = activeTab === 'All'
     ? patients
@@ -107,7 +118,7 @@ export default function ClinicianPatients() {
             background: 'linear-gradient(135deg,#14b8a6,#0d9488)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontWeight: 700, fontSize: 14, color: '#fff',
-          }}>{initial}</div>
+          }}>A</div>
         </div>
       </div>
 

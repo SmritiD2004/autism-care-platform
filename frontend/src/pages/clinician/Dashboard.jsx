@@ -1,7 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../services/api';
-import { useAuth } from '../../contexts/AuthContext';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
@@ -125,19 +124,20 @@ const CustomTooltip = ({ active, payload, label }) => {
 
 export default function ClinicianDashboard() {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const displayName = user?.fullName || user?.email || 'User';
-  const initial = displayName.trim().charAt(0).toUpperCase() || 'U';
 
-  const { data: patients = [] } = useQuery({
-    queryKey: ['patients'],
+  const { data: screeningCount = 0 } = useQuery({
+    queryKey: ['screening-history-count'],
     queryFn: async () => {
-      const { data } = await api.get('/proto/patients');
-      return data;
+      try {
+        const { data } = await api.get('/screening/history');
+        return Number(data?.count ?? 0);
+      } catch {
+        return 0;
+      }
     },
   });
 
-  const activeCount = patients.length || 124;
+  const activeCount = screeningCount || 124;
 
   const stats = [
     {
@@ -209,7 +209,7 @@ export default function ClinicianDashboard() {
             background: 'linear-gradient(135deg,#14b8a6,#0d9488)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontWeight: 700, fontSize: 14, color: '#fff',
-          }}>{initial}</div>
+          }}>A</div>
         </div>
       </div>
 

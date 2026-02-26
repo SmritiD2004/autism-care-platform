@@ -3,8 +3,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { ErrorBoundary } from "../../components/ErrorBoundary";
-import { protoLogin } from "../../services/auth";
-
+import { login as loginRequest } from "../../services/auth";
 import "../../styles/design-system.css";
 
 function LoginInner() {
@@ -16,24 +15,22 @@ function LoginInner() {
   const [showPassword, setShowPassword] = useState(false);
   const [error,        setError]        = useState("");
   const [loading,      setLoading]      = useState(false);
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!email || !pwd) { setError("Both fields are required"); return; }
     setError("");
     setLoading(true);
     try {
-      const userData = await protoLogin(email, pwd);
+      const userData = await loginRequest(email, pwd);
       login(userData);
-      // Role-based redirect
       navigate(userData.role === "parent" ? "/parent/dashboard" : "/clinician/dashboard");
-    } catch {
-      setError("Login failed – please try again");
+    } catch (err) {
+      const apiMessage = err?.response?.data?.detail;
+      setError(typeof apiMessage === "string" ? apiMessage : "Login failed. Check email/password and backend connection.");
     } finally {
       setLoading(false);
     }
   };
-
   return (
     <div style={s.container}>
       {/* Left panel */}
@@ -190,3 +187,7 @@ export default function Login() {
     </ErrorBoundary>
   );
 }
+
+
+
+

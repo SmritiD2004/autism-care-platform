@@ -1,11 +1,13 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+from types import SimpleNamespace
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 
 from config import settings
 from database import get_db
@@ -94,7 +96,8 @@ def require_roles(*roles: str):
             ...
     """
     def _guard(current_user: models.User = Depends(get_current_user)):
-        if current_user.role.value not in roles:
+        role_value = getattr(current_user.role, "value", str(current_user.role))
+        if role_value not in roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Access denied. Allowed roles: {list(roles)}",

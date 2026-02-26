@@ -43,7 +43,7 @@ const navLinks = [
   { to: '/clinician/dashboard', label: 'Dashboard', icon: 'dashboard' },
   { to: '/clinician/patients',  label: 'Patients',  icon: 'patients'  },
   { to: '/clinician/therapy',   label: 'Therapy Plans', icon: 'therapy' },
-  { to: '/ml-analysis',         label: 'ML Analysis', icon: 'ml' },
+  { to: '/clinician/ml-analysis', label: 'ML Analysis', icon: 'ml' },
 ];
 
 const activeLinkStyle = {
@@ -188,3 +188,4 @@ export default function ClinicianLayout() {
     </div>
   );
 }
+
