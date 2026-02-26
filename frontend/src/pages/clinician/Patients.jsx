@@ -67,10 +67,15 @@ export default function ClinicianPatients() {
     queryKey: ['patients'],
     queryFn: async () => {
       try {
-        // Backend currently does not expose /api/patients.
-        // Touch a valid clinician endpoint, then keep stable UI with mock data.
-        await api.get('/screening/history');
-        return mockPatients;
+        const { data } = await api.get('/patients');
+        return data?.length ? data.map(p => ({
+          id: p.id,
+          name: p.parent_name ? `${p.parent_name}'s Child` : `Patient ${p.child_id_hashed}`,
+          age: 4, // Placeholder
+          riskScore: 0.5, // Placeholder
+          status: 'Active',
+          initials: p.parent_name ? p.parent_name[0] : 'P'
+        })) : mockPatients;
       } catch { return mockPatients; }
     },
   });

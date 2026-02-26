@@ -19,8 +19,21 @@ export default function ClinicianScreenings() {
     queryKey: ['screenings'],
     queryFn: async () => {
       try {
-        const { data } = await api.get('/screenings');
-        return data?.length ? data : mockScreenings;
+        const { data } = await api.get('/screening/history');
+        const list = data?.screenings || [];
+        return list.length ? list.map(s => ({
+          ...s,
+          risk: s.risk_score,
+          patient: `Patient #${s.id}`, // Placeholder as backend ScreeningHistoryItem doesn't have name
+          initials: 'P',
+          uploaded: new Date(s.created_at).toLocaleDateString(),
+          status: 'reviewed', // Most in history are reviewed
+          confidence: 0.9,
+          indicators: s.indicators || {},
+          shap: s.indicators || {}, // Placeholder
+          clips: [],
+          differential: []
+        })) : mockScreenings;
       } catch { return mockScreenings; }
     },
   });
