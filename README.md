@@ -239,26 +239,8 @@ When contributing to this project:
 4. Document your changes thoroughly
 5. Participate in code reviews
 
-## 📝 License
-
-[Specify your license here]
-
-## 🙏 Acknowledgments
-
-- The autism community for their insights and feedback
-- Researchers and clinicians working in this field
-- Open-source contributors
-
-## 📞 Contact and Support
-
-[Add contact information]
-
 ## 🔗 Resources
 
 - [Autism Research Ethics Guidelines](https://example.com)
 - [AI Ethics Resources](https://example.com)
 - [Accessibility Guidelines](https://www.w3.org/WAI/WCAG21/quickref/)
-
----
-
-**Remember**: Technology should serve and support people, not replace human judgment, especially in sensitive areas like healthcare and neurodivergence. Always prioritize the well-being and dignity of individuals.
